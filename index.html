@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>派對抽獎機 🎉</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎉</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+<style>
+  :root {
+    --pink: #FF3D7F;
+    --orange: #FF8A3D;
+    --yellow: #FFC93C;
+    --teal: #00C2A8;
+    --violet: #7B2FF7;
+    --cream: #FFF9F0;
+    --ink: #2B1B3D;
+    --ink-soft: #6E5E82;
+    --ink-faint: #A498B5;
+    --white: #FFFFFF;
+    --line: rgba(43,27,61,0.10);
+    --line-strong: rgba(43,27,61,0.22);
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+    --shadow-card: 0 10px 30px rgba(123,47,247,0.12), 0 2px 8px rgba(43,27,61,0.06);
+    --brand-grad: linear-gradient(90deg, var(--pink), var(--violet));
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2.5rem 1rem 4rem;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* decorative blurred blobs */
+  .blob { position: fixed; border-radius: 50%; filter: blur(60px); opacity: 0.35; z-index: 0; pointer-events: none; }
+  .blob-1 { width: 320px; height: 320px; background: var(--yellow); top: -120px; left: -100px; }
+  .blob-2 { width: 280px; height: 280px; background: var(--teal); bottom: -100px; right: -80px; }
+  .blob-3 { width: 220px; height: 220px; background: var(--pink); top: 40%; right: -120px; opacity: 0.25; }
+
+  .container { width: 100%; max-width: 600px; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 1.75rem; }
+
+  h1 {
+    font-family: 'ZCOOL KuaiLe', 'Noto Sans TC', sans-serif;
+    font-size: 38px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    background: var(--brand-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 4px;
+  }
+
+  .subtitle { font-size: 13px; color: var(--ink-faint); }
+
+  #conn-status {
+    position: fixed;
+    top: 14px; right: 16px;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--white);
+    border: 0.5px solid var(--line);
+    color: var(--ink-soft);
+    z-index: 5;
+    box-shadow: var(--shadow-card);
+  }
+  #conn-status.conn-bad { color: var(--pink); border-color: var(--pink); }
+
+  .error-banner {
+    display: none;
+    background: #FFF1EC;
+    border: 1px solid var(--orange);
+    color: #9C4A1A;
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+  }
+  .error-banner.show { display: block; }
+  .error-banner code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; }
+
+  .card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--line);
+    box-shadow: var(--shadow-card);
+    padding: 1.75rem 1.5rem;
+    position: relative;
+  }
+
+  .loading-overlay {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.92);
+    border-radius: var(--radius-lg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; z-index: 10; font-size: 14px; color: var(--ink-soft);
+  }
+  .spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 4px solid var(--line);
+    border-top-color: var(--pink);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  .tab {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1.5px solid var(--line);
+    background: var(--cream);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    transition: all .18s ease;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-family: inherit;
+  }
+  .tab:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  .tab.active {
+    background: var(--brand-grad);
+    color: var(--white);
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(255,61,127,0.30);
+    transform: translateY(-1px);
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadein .25s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ---------- Draw panel ---------- */
+  .scenario-picker-label {
+    font-size: 13px; font-weight: 700; color: var(--ink-soft);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  .chip {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1.5px solid var(--line-strong);
+    background: var(--white);
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s ease;
+    font-family: inherit;
+  }
+  .chip:hover { border-color: var(--violet); color: var(--violet); }
+  .chip:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  .chip.active {
+    background: var(--brand-grad);
+    color: var(--white);
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(123,47,247,0.30);
+  }
+
+  .scenario-meta {
+    font-size: 13px; color: var(--ink-faint); text-align: center; margin-bottom: 1.25rem;
+  }
+  .scenario-meta strong { color: var(--violet); }
+
+  .lottery-stage {
+    display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+    padding: 0.5rem 0 1rem; position: relative;
+  }
+
+  .drum-wrap { position: relative; width: 260px; height: 260px; }
+  .drum-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--pink), var(--yellow), var(--teal), var(--violet), var(--pink));
+    animation: ring-spin 7s linear infinite;
+    padding: 8px;
+  }
+  @keyframes ring-spin { to { transform: rotate(360deg); } }
+  .drum-ring.fast { animation-duration: 0.6s; }
+
+  #drum {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: inset 0 2px 10px rgba(43,27,61,0.08);
+  }
+  #drum-text {
+    font-size: 21px; font-weight: 700; color: var(--ink);
+    text-align: center; padding: 1.2rem; word-break: break-word;
+    max-width: 200px; line-height: 1.4;
+  }
+  #drum.spinning #drum-text { animation: flicker 0.08s infinite; }
+  @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .confetti-piece { position: absolute; width: 9px; height: 9px; border-radius: 2px; pointer-events: none; animation: confetti-fly 0.9s ease-out forwards; z-index: 3; }
+  @keyframes confetti-fly { to { transform: translate(var(--dx), var(--dy)) rotate(720deg); opacity: 0; } }
+
+  #btn-draw {
+    padding: 14px 44px;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 999px;
+    background: var(--brand-grad);
+    border: none;
+    cursor: pointer;
+    color: var(--white);
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 20px rgba(255,61,127,0.35);
+    transition: transform .12s ease, box-shadow .12s ease;
+    font-family: inherit;
+  }
+  #btn-draw:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255,61,127,0.45); }
+  #btn-draw:active:not(:disabled) { transform: translateY(0); }
+  #btn-draw:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  #btn-draw:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; }
+
+  .result-box {
+    padding: 1.1rem 2rem;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #FFF3E0, #FFE8F2);
+    border: 1.5px solid var(--pink);
+    text-align: center;
+    min-width: 240px;
+    display: none;
+    animation: pop-in 0.35s cubic-bezier(.34,1.56,.64,1);
+  }
+  .result-box.show { display: block; }
+  @keyframes pop-in { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .result-label { font-size: 12px; font-weight: 700; color: var(--orange); margin-bottom: 6px; letter-spacing: 1px; }
+  .result-name { font-size: 26px; font-weight: 900; color: var(--ink); word-break: break-word; }
+
+  /* ---------- Manage panel ---------- */
+  .manage-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+  .btn-add-scenario {
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--white);
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+    font-family: inherit;
+  }
+  .btn-add-scenario:hover { background: var(--violet); }
+  .btn-add-scenario:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+
+  .scenario-card {
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--line);
+    border-left-width: 6px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 14px;
+    background: var(--cream);
+  }
+  .scenario-card.accent-0 { border-left-color: var(--pink); }
+  .scenario-card.accent-1 { border-left-color: var(--teal); }
+  .scenario-card.accent-2 { border-left-color: var(--yellow); }
+  .scenario-card.accent-3 { border-left-color: var(--violet); }
+
+  .field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .scenario-name-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--line-strong);
+    background: var(--white);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 700;
+    outline: none;
+    font-family: inherit;
+  }
+  .scenario-name-input:focus-visible { border-color: var(--violet); }
+  .char-count { font-size: 11px; color: var(--ink-faint); white-space: nowrap; min-width: 36px; text-align: right; }
+
+  .options-textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--line-strong);
+    background: var(--white);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+  }
+  .options-textarea:focus-visible { border-color: var(--violet); }
+
+  .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; flex-wrap: wrap; }
+  .option-count-badge {
+    font-size: 11px; font-weight: 700; color: var(--violet);
+    background: #F1E9FF; padding: 3px 10px; border-radius: 20px;
+  }
+  .status-text { font-size: 12px; color: var(--ink-faint); }
+  .status-text.dirty { color: var(--orange); }
+  .status-text.saved { color: var(--teal); }
+
+  .card-actions { display: flex; gap: 8px; }
+  .btn-save, .btn-delete {
+    padding: 7px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 5px;
+    font-family: inherit;
+  }
+  .btn-save { background: var(--teal); color: var(--white); }
+  .btn-save:hover { background: #00A88F; }
+  .btn-save:focus-visible, .btn-delete:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  .btn-delete { background: transparent; color: var(--pink); border: 1.5px solid var(--pink); }
+  .btn-delete:hover { background: #FFE8F0; }
+
+  .empty-hint {
+    text-align: center; padding: 2.5rem 1rem; color: var(--ink-faint); font-size: 14px;
+  }
+  .empty-hint i { display: block; font-size: 36px; margin-bottom: 10px; color: var(--ink-faint); }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 30px; }
+    .card { padding: 1.25rem 1rem; }
+    .drum-wrap { width: 220px; height: 220px; }
+  }
+</style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div id="conn-status">🟡 連線中...</div>
+
+  <div class="container">
+    <header>
+      <h1>🎉 派對抽獎機</h1>
+      <div class="subtitle">選情境・抽一個・跨裝置同步</div>
+    </header>
+
+    <div class="error-banner" id="error-banner"></div>
+
+    <div class="card">
+      <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div>連接資料庫中...</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" id="tab-btn-draw" onclick="switchTab('draw')">
+          <i class="ti ti-confetti"></i>抽獎
+        </button>
+        <button class="tab" id="tab-btn-manage" onclick="switchTab('manage')">
+          <i class="ti ti-list"></i>維護情境
+        </button>
+      </div>
+
+      <!-- Draw Panel -->
+      <div class="panel active" id="panel-draw">
+        <div class="scenario-picker-label"><i class="ti ti-flag-3"></i>選擇抽獎情境</div>
+        <div class="chip-row" id="chip-row"></div>
+        <div class="scenario-meta" id="scenario-meta"></div>
+
+        <div class="lottery-stage">
+          <div class="drum-wrap">
+            <div class="drum-ring" id="drum-ring">
+              <div id="drum"><div id="drum-text">按下抽獎</div></div>
+            </div>
+          </div>
+          <button id="btn-draw" onclick="startDraw()">
+            <i class="ti ti-sparkles"></i>開始抽獎
+          </button>
+          <div class="result-box" id="result-box">
+            <div class="result-label">🎊 抽中結果</div>
+            <div class="result-name" id="result-name"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manage Panel -->
+      <div class="panel" id="panel-manage">
+        <div class="manage-toolbar">
+          <button class="btn-add-scenario" onclick="addScenario()">
+            <i class="ti ti-plus"></i>新增情境
+          </button>
+        </div>
+        <div id="scenario-list"></div>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, query, orderBy, onSnapshot,
+    addDoc, updateDoc, deleteDoc, doc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDkxY8cco4YAQcbvmepbedsK4dV5sDzbAM",
+    authDomain: "sons-topic.firebaseapp.com",
+    projectId: "sons-topic"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  // 這個 Firebase 專案與其他 App 共用，所有資料都鎖在 "lottery_data" collection 底下，
+  // 不會讀寫到其他 App 的 collection，彼此互不影響。
+  const scenariosCol = collection(db, "lottery_data");
+  const scenariosQuery = query(scenariosCol, orderBy("createdAt", "asc"));
+
+  let scenarios = [];          // [{id, name, options:[]}]
+  let selectedScenarioId = null;
+  let spinning = false;
+  let firstLoad = true;
+
+  // ---------- Firestore live sync ----------
+  onSnapshot(scenariosQuery, (snap) => {
+    scenarios = snap.docs.map(d => ({ id: d.id, name: d.data().name || "", options: d.data().options || [] }));
+
+    if (firstLoad) {
+      firstLoad = false;
+      document.getElementById('loading-overlay')?.remove();
+    }
+    if (!selectedScenarioId && scenarios.length) {
+      selectedScenarioId = scenarios[0].id;
+    } else if (selectedScenarioId && !scenarios.find(s => s.id === selectedScenarioId)) {
+      selectedScenarioId = scenarios[0]?.id || null;
+    }
+
+    setConnStatus(true);
+    renderChips();
+    if (isManageIdle()) renderManageList();
+  }, (err) => {
+    console.error(err);
+    setConnStatus(false);
+    showErrorBanner(err);
+    document.getElementById('loading-overlay')?.remove();
+  });
+
+  function setConnStatus(ok) {
+    const el = document.getElementById('conn-status');
+    el.textContent = ok ? '🟢 已連線' : '🔴 連線異常';
+    el.className = ok ? '' : 'conn-bad';
+  }
+
+  function showErrorBanner(err) {
+    const el = document.getElementById('error-banner');
+    el.innerHTML = `⚠️ 無法連接資料庫（${escHtml(err.code || err.message || '未知錯誤')}）。請確認 Firestore 安全性規則已允許讀寫，詳見 <code>README.md</code>。`;
+    el.classList.add('show');
+  }
+
+  // ---------- Helpers ----------
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function parseOptions(text) {
+    return text.split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  function isManageIdle() {
+    const panel = document.getElementById('panel-manage');
+    return !panel.contains(document.activeElement);
+  }
+
+  // ---------- Tabs ----------
+  window.switchTab = function (t) {
+    document.getElementById('tab-btn-draw').classList.toggle('active', t === 'draw');
+    document.getElementById('tab-btn-manage').classList.toggle('active', t === 'manage');
+    document.getElementById('panel-draw').classList.toggle('active', t === 'draw');
+    document.getElementById('panel-manage').classList.toggle('active', t === 'manage');
+    if (t === 'manage') renderManageList();
+  };
+
+  // ---------- Draw panel rendering ----------
+  function renderChips() {
+    const row = document.getElementById('chip-row');
+    const meta = document.getElementById('scenario-meta');
+    const btnDraw = document.getElementById('btn-draw');
+
+    if (scenarios.length === 0) {
+      row.innerHTML = `<div class="empty-hint" style="width:100%"><i class="ti ti-flag-off"></i>尚無情境，請先到「維護情境」新增</div>`;
+      meta.textContent = '';
+      btnDraw.disabled = true;
+      resetDrum();
+      return;
+    }
+
+    row.innerHTML = scenarios.map(s => `
+      <button class="chip ${s.id === selectedScenarioId ? 'active' : ''}" onclick="selectScenario('${s.id}')">
+        ${escHtml(s.name || '(未命名)')}
+      </button>`).join('');
+
+    const current = scenarios.find(s => s.id === selectedScenarioId);
+    if (current) {
+      meta.innerHTML = `🎯 抽獎情境：<strong>${escHtml(current.name)}</strong>　共 <strong>${current.options.length}</strong> 個選項`;
+      btnDraw.disabled = current.options.length === 0;
+    } else {
+      meta.textContent = '';
+      btnDraw.disabled = true;
+    }
+  }
+
+  window.selectScenario = function (id) {
+    if (spinning) return;
+    selectedScenarioId = id;
+    resetDrum();
+    renderChips();
+  };
+
+  function resetDrum() {
+    document.getElementById('drum-text').textContent = '按下抽獎';
+    document.getElementById('result-box').classList.remove('show');
+  }
+
+  // ---------- Draw logic ----------
+  window.startDraw = function () {
+    if (spinning) return;
+    const current = scenarios.find(s => s.id === selectedScenarioId);
+    if (!current || current.options.length === 0) {
+      alert('請先選擇一個有選項的情境！');
+      return;
+    }
+    spinning = true;
+    const btn = document.getElementById('btn-draw');
+    btn.disabled = true;
+    const drum = document.getElementById('drum');
+    const ring = document.getElementById('drum-ring');
+    const drumText = document.getElementById('drum-text');
+    const resultBox = document.getElementById('result-box');
+    resultBox.classList.remove('show');
+    drum.classList.add('spinning');
+    ring.classList.add('fast');
+
+    const options = current.options;
+    let elapsed = 0;
+    const duration = 2200;
+    const interval = 80;
+
+    const timer = setInterval(() => {
+      elapsed += interval;
+      drumText.textContent = options[Math.floor(Math.random() * options.length)];
+      if (elapsed >= duration) {
+        clearInterval(timer);
+        drum.classList.remove('spinning');
+        ring.classList.remove('fast');
+        const winner = options[Math.floor(Math.random() * options.length)];
+        drumText.textContent = winner;
+        document.getElementById('result-name').textContent = winner;
+        resultBox.classList.add('show');
+        burstConfetti(document.querySelector('.drum-wrap'));
+        spinning = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-refresh"></i>再抽一次';
+      }
+    }, interval);
+  };
+
+  function burstConfetti(stageEl) {
+    const colors = ['#FF3D7F', '#FFC93C', '#00C2A8', '#7B2FF7', '#FF8A3D'];
+    const cx = stageEl.offsetWidth / 2;
+    const cy = stageEl.offsetHeight / 2;
+    for (let i = 0; i < 26; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 70 + Math.random() * 90;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist - 30;
+      p.style.setProperty('--dx', dx + 'px');
+      p.style.setProperty('--dy', dy + 'px');
+      p.style.background = colors[i % colors.length];
+      p.style.left = cx + 'px';
+      p.style.top = cy + 'px';
+      stageEl.appendChild(p);
+      setTimeout(() => p.remove(), 950);
+    }
+  }
+
+  // ---------- Manage panel rendering ----------
+  function renderManageList() {
+    const el = document.getElementById('scenario-list');
+    if (scenarios.length === 0) {
+      el.innerHTML = `<div class="empty-hint"><i class="ti ti-inbox"></i>尚未新增任何情境，點右上角「新增情境」開始</div>`;
+      return;
+    }
+    el.innerHTML = scenarios.map((s, i) => {
+      const optText = s.options.join('\n');
+      return `
+      <div class="scenario-card accent-${i % 4}" data-id="${s.id}">
+        <div class="field-row">
+          <input type="text" class="scenario-name-input" maxlength="10" value="${escHtml(s.name)}"
+            data-role="name" oninput="onCardDirty('${s.id}'); updateCharCount('${s.id}')" placeholder="情境名稱（最多10字）" />
+          <span class="char-count" id="charcount-${s.id}">${s.name.length}/10</span>
+        </div>
+        <textarea class="options-textarea" data-role="options" placeholder="一行一個選項，例如：&#10;蘋果&#10;香蕉&#10;橘子"
+          oninput="onCardDirty('${s.id}')">${escHtml(optText)}</textarea>
+        <div class="card-footer">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="option-count-badge" id="optcount-${s.id}">${s.options.length} 個選項</span>
+            <span class="status-text" id="status-${s.id}"></span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-save" onclick="saveScenario('${s.id}')"><i class="ti ti-device-floppy"></i>儲存</button>
+            <button class="btn-delete" onclick="deleteScenario('${s.id}', '${escHtml(s.name).replace(/'/g, "\\'")}')"><i class="ti ti-trash"></i>刪除</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  window.updateCharCount = function (id) {
+    const card = document.querySelector(`.scenario-card[data-id="${id}"]`);
+    if (!card) return;
+    const input = card.querySelector('[data-role="name"]');
+    const counter = document.getElementById(`charcount-${id}`);
+    if (counter) counter.textContent = `${input.value.length}/10`;
+  };
+
+  window.onCardDirty = function (id) {
+    const status = document.getElementById(`status-${id}`);
+    if (status) { status.textContent = '尚未儲存'; status.className = 'status-text dirty'; }
+    const card = document.querySelector(`.scenario-card[data-id="${id}"]`);
+    if (card) {
+      const textarea = card.querySelector('[data-role="options"]');
+      const count = parseOptions(textarea.value).length;
+      const badge = document.getElementById(`optcount-${id}`);
+      if (badge) badge.textContent = `${count} 個選項`;
+    }
+  };
+
+  window.addScenario = async function () {
+    try {
+      const ref = await addDoc(scenariosCol, { name: '新情境', options: [], createdAt: serverTimestamp() });
+      selectedScenarioId = selectedScenarioId || ref.id;
+      setTimeout(() => {
+        const card = document.querySelector(`.scenario-card[data-id="${ref.id}"]`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.querySelector('[data-role="name"]')?.focus();
+          card.querySelector('[data-role="name"]')?.select();
+        }
+      }, 300);
+    } catch (err) {
+      alert('新增失敗：' + (err.message || err));
+    }
+  };
+
+  window.saveScenario = async function (id) {
+    const card = document.querySelector(`.scenario-card[data-id="${id}"]`);
+    if (!card) return;
+    const nameInput = card.querySelector('[data-role="name"]');
+    const textarea = card.querySelector('[data-role="options"]');
+    const status = document.getElementById(`status-${id}`);
+
+    const name = nameInput.value.trim().slice(0, 10);
+    if (!name) { alert('情境名稱不能為空喔！'); nameInput.focus(); return; }
+    const options = parseOptions(textarea.value);
+
+    status.textContent = '儲存中...'; status.className = 'status-text';
+    try {
+      await updateDoc(doc(db, 'lottery_data', id), { name, options });
+      status.textContent = '✅ 已儲存'; status.className = 'status-text saved';
+      setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+    } catch (err) {
+      status.textContent = '❌ 儲存失敗'; status.className = 'status-text dirty';
+      alert('儲存失敗：' + (err.message || err));
+    }
+  };
+
+  window.deleteScenario = async function (id, name) {
+    if (!confirm(`確定要刪除「${name}」這個情境嗎？此動作無法復原。`)) return;
+    try {
+      await deleteDoc(doc(db, 'lottery_data', id));
+    } catch (err) {
+      alert('刪除失敗：' + (err.message || err));
+    }
+  };
+</script>
+</body>
+</html>
